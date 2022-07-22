@@ -13,12 +13,12 @@ app.mount("/videos", StaticFiles(directory="videos"), name="video")
 @app.get("/")
 def index():
     welcome = {"welcome":"Welcome to the video api"}
-    url_list = {"urlpaths" : [{"path": route.path, "name": route.name} for route in app.routes]}
+    url_list = {"urlpaths" : [{"path": route.path, "name": route.name} for route in app.routes]} #list of all urls
     return [welcome,url_list]
 
 @app.get("/videos")
 def videolist(request:Request,before:Optional[str]=None, after:Optional[str]=None, lessthansize:Optional[int]=None, morethansize:Optional[int]=None):
-    urlpath = getcwd()
+    urlpath = getcwd() #current working directory
     list = listdir(join(urlpath,"videos"))
     new = []
     afterdate = datetime.strptime(after,'%Y-%m-%dT%H:%M').timestamp() if bool(after) else None
@@ -28,8 +28,13 @@ def videolist(request:Request,before:Optional[str]=None, after:Optional[str]=Non
         if(platform.system() == 'Windows'):
             time = path.getctime(join(urlpath,"videos",x))
             size = path.getsize(join(urlpath,"videos",x))
+
+            #applying filter based on date
             datefilter = (not bool(afterdate) or bool(time > afterdate)) and (not bool(beforedate) or bool(time<beforedate))
+            
+            #applying filter based on the size of file
             sizefilter = (not bool(lessthansize) or bool(lessthansize>size) and (not bool(morethansize)) or bool(morethansize<size))
+            
             if (datefilter and sizefilter):
                 new.append(request.url._url + "/" + x)
 
@@ -65,12 +70,14 @@ async def create_upload_vdo(file: UploadFile):
         ext = file.filename[-3:]
         name = file.filename[:-4]
         file_location = f"videos/{file.filename}"
-        n = 0
 
+        #update file name if it already exists
+        n = 0
         while(exists(file_location)):
             file_location = f"videos/{name}_{n}.{ext}"
             n+=1
 
+        #write the file
         with open(file_location,"wb+") as f:
             f.write(contents)
 
@@ -82,9 +89,10 @@ async def create_upload_vdo(file: UploadFile):
 @app.post("/pricing/")
 def price_of_video(size:int,length:int,type:Optional[str] = None):
 
+    # validate file formats 
     if(type not in ["mp4","xmp","x-matroska"]):
         return {"Error":"Unsupported file type"}
 
-    for_size = 5 if size < 500*1024*1024 else 12.5
-    for_length = 12.5 if length < 6*60+18 else 20
+    for_size = 5 if size < 500*1024*1024 else 12.5 #pricing based on video size
+    for_length = 12.5 if length < 6*60+18 else 20 #pricing based on video length
     return {"price":for_size+for_length,"video format":type}
